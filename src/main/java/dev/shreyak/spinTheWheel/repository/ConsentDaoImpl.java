@@ -1,6 +1,7 @@
 package dev.shreyak.spinTheWheel.repository;
 
 import dev.shreyak.spinTheWheel.model.ConsentRequest;
+import dev.shreyak.spinTheWheel.util.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -29,7 +30,7 @@ public class ConsentDaoImpl implements ConsentDao {
             return reqs.stream().filter(new Predicate<ConsentRequest>() {
                 @Override
                 public boolean test(ConsentRequest consentRequest) {
-                    return consentRequest.getDetail().isConsentExpiryValid();
+                    return DateUtils.isConsentExpiryValid(consentRequest.getDetail().getConsentExpiry());
                 }
             }).findFirst().orElse(null);
         } else {

@@ -2,8 +2,13 @@ package dev.shreyak.spinTheWheel.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import dev.shreyak.spinTheWheel.model.ConsentRequest;
 import dev.shreyak.spinTheWheel.model.Detail;
+import dev.shreyak.spinTheWheel.model.SetuContext;
 import dev.shreyak.spinTheWheel.repository.ConsentDao;
 import dev.shreyak.spinTheWheel.util.Constants;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +18,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -28,8 +35,15 @@ public class ConsentServiceImpl implements ConsentService {
 
     public ConsentServiceImpl(ConsentDao consentDao) {
         this.consentDao = consentDao;
-        this.httpClient = new OkHttpClient();
-        this.objectMapper = new ObjectMapper();
+        this.httpClient = new OkHttpClient.Builder()
+                .readTimeout(5, TimeUnit.MINUTES)
+                .writeTimeout(5, TimeUnit.MINUTES)
+                .build();
+
+        this.objectMapper = JsonMapper.builder()
+                .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+                .defaultLeniency(true)
+                .build();
     }
 
 
@@ -41,9 +55,15 @@ public class ConsentServiceImpl implements ConsentService {
     @Override
     public ResponseEntity<String> createConsent(String mobileNumber) {
         Detail detail = Detail.create(mobileNumber, "redirect-url");
+        ConsentRequest req = new ConsentRequest();
+        req.setDetail(detail);
+        ArrayList<SetuContext> arr = new ArrayList<>();
+        arr.add(new SetuContext("accounttype", "CURRENT"));
+        req.setContext(arr);
+        req.setRedirectUrl("www.google.com");
         String body = "";
         try {
-            body = objectMapper.writeValueAsString(detail);
+            body = objectMapper.writeValueAsString(req);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error in creating consent detail");
@@ -63,7 +83,7 @@ public class ConsentServiceImpl implements ConsentService {
                 String url = jsonResponse.get("url").asText();
                 return ResponseEntity.ok(url);
             } else {
-                return ResponseEntity.status(response.code()).body(response.message());
+                return ResponseEntity.status(response.code()).body(response.body().string());
             }
         } catch (IOException e) {
             e.printStackTrace();
